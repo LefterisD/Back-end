@@ -1,8 +1,9 @@
 from flask import Flask, render_template, url_for, request
-import requests
-import json
-app = Flask("__main__")
+import requests, json
+from flask_cors import CORS
 
+app = Flask("__main__")
+CORS(app)
 
 @app.route("/api/v1/check/<text>", methods=["POST", "GET"])
 def getMistakes(text):
