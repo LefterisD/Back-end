@@ -5,8 +5,9 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
+
 app = Flask("__main__")
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
 CORS(app, supports_credentials=True)
 
@@ -15,10 +16,17 @@ CORS(app, supports_credentials=True)
 #from flaskapi import db
 #db.create_all()
 
+class Users(db.Model):
+    id = db.Column(db.String(50), primary_key=True)
+    role = db.Column(db.String(15))
+
+    def __repr__(self):
+        return 'Created user %d' % self.id
+
 class Spelling(db.Model):
     id = db.Column(db.Integer)
     word = db.Column(db.String(50), primary_key=True)
-    count = db.Column(db.Integer, default=0)
+    count = db.Column(db.Integer, default=1)
     date_created = db.Column(db.DateTime, default = datetime.utcnow)
 
     def __repr__(self):
@@ -34,7 +42,10 @@ class Grammar(db.Model):
         return 'Created %s' % self.word
 
 
-@app.route("/api/v1/check/<text>", methods=["POST", "GET"])
+
+
+
+@app.route("/api/v1/check/<text>", methods=["GET"])
 def getMistakes(text):
     if request.method == "GET":
         input_text = text
@@ -47,9 +58,32 @@ def getMistakes(text):
         return ""
 
 
+@app.route("/user/<role>/<id>", methods=["GET","POST"])
+def users(role,id):
+    if request.method == "POST":
+        exists = db.session.query(Users.id).filter_by(id=id).first()
+        if(not exists):
+            new_user = Users(id=id, role=role)
+            try:
+                db.session.add(new_user)
+                db.session.commit()
+            except:
+                return "Could not add user"
+        else:
+            return "User already exists"
 
-@app.route("/mistakes/<type_of_mistake>/<word>", methods=["POST"])
-def addData(word,type_of_mistake):
+
+@app.route("/mistakes/delete_by_id/<id>",methods=["POST"])
+def deleteById(id):
+    if request.method == "POST":
+        db.session.query(Spelling).filter_by(id=id).delete()
+        try:
+            db.session.commit()
+        except:
+            return "Could not delete records"    
+
+@app.route("/mistakes/<id>/<type_of_mistake>/<word>", methods=["POST"])
+def addData(id,word,type_of_mistake):
     if request.method == "POST":
         word_to_add = word
         if type_of_mistake == 'spelling':
@@ -62,7 +96,7 @@ def addData(word,type_of_mistake):
                 except:
                     return "Could not update word count!"    
             else:        
-                new_mistake = Spelling(word = word_to_add)
+                new_mistake = Spelling(id= id,word = word_to_add)
                 try:
                     db.session.add(new_mistake)
                     db.session.commit()
@@ -79,7 +113,7 @@ def addData(word,type_of_mistake):
                 except:
                     return "Could not update word count!"    
             else:        
-                new_mistake = Grammar(word = word_to_add)
+                new_mistake = Grammar(id=id,word = word_to_add)
                 try:
                     db.session.add(new_mistake)
                     db.session.commit()
