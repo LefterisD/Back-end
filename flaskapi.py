@@ -23,6 +23,19 @@ class Users(db.Model):
     def __repr__(self):
         return 'Created user %d' % self.id
 
+class Essays(db.Model):
+    id = db.Column(db.Integer, primary_key=True , autoincrement=True)
+    user_id = db.Column(db.String(30))
+    role = db.Column(db.String(15))
+    num_words = db.Column(db.Integer)
+    num_mistakes = db.Column(db.Integer)
+    grade = db.Column(db.String(10))
+    
+    date_created = db.Column(db.DateTime, default = datetime.utcnow)
+
+    def __repr__(self):
+        return 'Created essay %d' % self.id
+
 class Spelling(db.Model):
     id = db.Column(db.Integer)
     word = db.Column(db.String(50), primary_key=True)
@@ -75,6 +88,27 @@ def getMistakes(text):
         return json_obj
     else:
         return ""
+
+@app.route("/essays/all", methods=["GET"])
+def getEssays():
+    if request.method == "GET":
+        try:
+            temp_list = []
+            essay_data = Essays.query.order_by(Essays.date_created).all()
+
+            for essay in essay_data:
+                essay_obj = {
+                    "essay" : essay.id,
+                    "num_words" : essay.num_words,
+                    "num_mistakes" : essay.num_mistakes,
+                    "grade" : essay.grade,
+                }
+                temp_list.append(essay_obj)
+            temp_list = json.dumps(temp_list)
+            return temp_list    
+        except:
+            return "Error could not return essays"    
+
 
 @app.route("/update_essay_count/user/<id>/role/<role>",methods=["GET","POST"])
 def update_essay_count(id,role):
