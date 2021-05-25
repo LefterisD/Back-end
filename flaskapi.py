@@ -20,17 +20,29 @@ class Users(db.Model):
     id = db.Column(db.String(50), primary_key=True)
     role = db.Column(db.String(15))
     essay_count = db.Column(db.Integer, default=0)
+    
     def __repr__(self):
         return 'Created user %d' % self.id
+
+class UserInfo(db.Model):
+    id = db.Column(db.String(50), primary_key=True)
+    role = db.Column(db.String(15))
+    age = db.Column(db.Integer, default=0)
+    education = db.Column(db.String(50))
+    mother_tongue = db.Column(db.String(50))
+    
+    def __repr__(self):
+        return 'Created user info %d' % self.id
 
 class Essays(db.Model):
     id = db.Column(db.Integer, primary_key=True , autoincrement=True)
     user_id = db.Column(db.String(30))
     role = db.Column(db.String(15))
     num_words = db.Column(db.Integer)
-    num_mistakes = db.Column(db.Integer)
+    num_spelling = db.Column(db.Integer)
+    num_grammar = db.Column(db.Integer)
+    num_punctuation = db.Column(db.Integer)
     grade = db.Column(db.String(10))
-    
     date_created = db.Column(db.DateTime, default = datetime.utcnow)
 
     def __repr__(self):
@@ -89,6 +101,26 @@ def getMistakes(text):
     else:
         return ""
 
+
+@app.route("/user/user_info",methods=["POST"])
+def userInfo():
+    if request.method == "POST":
+        id = request.form.get("id")
+        role = request.form.get("role")
+        age = request.form.get('age')
+        education = request.form.get('level')
+        mother_tongue = request.form.get('MT')
+
+        new_info = UserInfo(id=id, role=role, age=age, education= education, mother_tongue = mother_tongue)
+        try:
+            db.session.add(new_info)
+            db.session.commit()
+        except:
+            return "Could not update info"   
+    return ""         
+
+            
+
 @app.route("/essays/all", methods=["GET"])
 def getEssays():
     if request.method == "GET":
@@ -100,7 +132,9 @@ def getEssays():
                 essay_obj = {
                     "essay" : essay.id,
                     "num_words" : essay.num_words,
-                    "num_mistakes" : essay.num_mistakes,
+                    "num_spelling" : essay.num_spelling,
+                    "num_grammar" : essay.num_grammar,
+                    "num_punctuation" : essay.num_punctuation,
                     "grade" : essay.grade,
                 }
                 temp_list.append(essay_obj)
@@ -108,6 +142,17 @@ def getEssays():
             return temp_list    
         except:
             return "Error could not return essays"    
+
+@app.route("/essays/add/role/<role>/id/<id>/spelling/<spelling>/grammar/<grammar>/puncutation/<punctuation>/words/<words>/<grade>",methods=["POST"])
+def addEssay(role,id,spelling,grammar,punctuation,words,grade):
+    if request.method == "POST":
+        new_essay = Essays(user_id=id,role=role,num_words=words,num_spelling=spelling,num_grammar=grammar,num_punctuation=punctuation,grade=grade)
+        try:
+            db.session.add(new_essay)
+            db.session.commit()
+        except:
+            return "ERROR could not add essay"    
+    return ""        
 
 
 @app.route("/update_essay_count/user/<id>/role/<role>",methods=["GET","POST"])
@@ -171,6 +216,11 @@ def deleteById(id,role):
             except:
                 return "Could not delete grammar error for the user"    
             db.session.query(Syntax).filter(Syntax.id == id).filter(Syntax.role == role).delete()
+            try:
+                db.session.commit()
+            except:
+                return "Could not delete syntax error for the user"    
+            db.session.query(Essays).filter(Essays.user_id == id).filter(Essays.role == role).delete()
             try:
                 db.session.commit()
             except:
