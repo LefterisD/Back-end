@@ -48,9 +48,21 @@ class Essays(db.Model):
     def __repr__(self):
         return 'Created essay %d' % self.id
 
+class ModelWeights(db.Model):
+    id = db.Column(db.Integer, autoincrement=True)
+    user_id = db.Column(db.String(30), primary_key=True)
+    role = db.Column(db.String(15))
+    spelling_w = db.Column(db.Float)
+    grammar_w = db.Column(db.Float)
+    punctuation_w = db.Column(db.Float)
+
+    def __repr__(self):
+        return 'Updated weights ' 
+
 class Spelling(db.Model):
     id = db.Column(db.Integer)
-    word = db.Column(db.String(50), primary_key=True)
+    sec_id = db.Column(db.Integer ,primary_key=True)
+    word = db.Column(db.String(50))
     count = db.Column(db.Integer, default=1)
     role = db.Column(db.String(15))
     date_created = db.Column(db.DateTime, default = datetime.utcnow)
@@ -60,7 +72,8 @@ class Spelling(db.Model):
 
 class Grammar(db.Model):
     id = db.Column(db.Integer)
-    word = db.Column(db.String(50), primary_key=True)
+    sec_id = db.Column(db.Integer ,primary_key=True)
+    word = db.Column(db.String(50))
     count = db.Column(db.Integer, default=1)
     role = db.Column(db.String(15))
     date_created = db.Column(db.DateTime, default = datetime.utcnow)
@@ -70,7 +83,8 @@ class Grammar(db.Model):
 
 class Syntax(db.Model):
     id = db.Column(db.Integer)
-    word = db.Column(db.String(50), primary_key=True)
+    sec_id = db.Column(db.Integer ,primary_key=True)
+    word = db.Column(db.String(50))
     count = db.Column(db.Integer, default=1)
     role = db.Column(db.String(15))
     date_created = db.Column(db.DateTime, default = datetime.utcnow)
@@ -101,6 +115,130 @@ def getMistakes(text):
     else:
         return ""
 
+@app.route("/weights/update/<role>/<id>/<feedback>",methods=["POST"])
+def updateWeights(role,id,feedback):
+    if(request.method ==  "POST"):
+        user_id = id
+        if(feedback == "no"):
+            weight_to_remove_spelling = 0.2
+            weight_to_add_grammar = 0.12
+            weight_to_add_punctuation = 0.08
+
+            exists = db.session.query(ModelWeights).filter_by(user_id=id).filter_by(role=role).first()
+
+            if(exists):
+                weights = ModelWeights.query.get_or_404(id)
+                weights.spelling_w = weights.spelling_w + weight_to_remove_spelling 
+                weights.grammar_w = weights.grammar_w - weight_to_add_grammar
+                weights.punctuation_w = weights.punctuation_w - weight_to_add_punctuation
+
+                try:
+                    db.session.commit()
+                except:
+                    return "Error could not update weights"
+     
+        else:
+            return feedback
+        return ""            
+
+@app.route("/add/user/weights/<role>/<id>/<w1>/<w2>/<w3>",methods=["POST"])
+def setUserWeights(role,id,w1,w2,w3):
+    if request.method == "POST":    
+        exists = db.session.query(ModelWeights).first()
+        if(exists):
+            user_exists = db.session.query(ModelWeights).filter_by(user_id=id).filter_by(role=role).first()
+            if(user_exists):
+                pass
+            else:
+                new_user_weight = ModelWeights(user_id=id, role=role , spelling_w=w1, grammar_w=w2, punctuation_w=w3)
+                try:
+                    db.session.add(new_user_weight)
+                    db.session.commit()
+                except:
+                    return "Could not add user"
+        else:
+            new_user_weight = ModelWeights(user_id=id, role=role , spelling_w=13, grammar_w=5, punctuation_w=2)
+            try:
+                db.session.add(new_user_weight)
+                db.session.commit()
+            except:
+                return "Could not add first user"
+        return ""           
+
+
+
+
+@app.route("/weights/by/<role>/<id>",methods=["GET"])
+def getWeights(role,id):
+    if request.method == "GET":
+        user_exists = db.session.query(ModelWeights).filter_by(user_id=id).filter_by(role=role).first()
+        if(user_exists):
+            weight_data = ModelWeights.query.filter(ModelWeights.user_id == id).filter(ModelWeights.role == role).first()
+            weights = []
+
+            temp_weights = {
+                "spelling_w" : weight_data.spelling_w,
+                "grammar_w" : weight_data.grammar_w,
+                "punctuation_w" : weight_data.punctuation_w
+            }
+
+            weights.append(temp_weights)
+            weights = json.dumps(weights)
+            return weights
+        else:
+            return ""    
+    return ""        
+        
+
+@app.route('/test/route',methods=["GET"])
+def test():
+    if request.method == "GET":
+        weight_data = ModelWeights.query.order_by(ModelWeights.user_id).all()
+        temp_arr = []
+
+        for x in weight_data:
+            temp_obj = {
+                "w1" : x.spelling_w,
+                "w2" : x.grammar_w,
+                "w3" : x.punctuation_w,
+            }
+            temp_arr.append(temp_obj)
+        temp_arr = json.dumps(temp_arr)
+        return temp_arr    
+
+@app.route("/weights/all",methods=["GET"])
+def getAverageWeights():
+    if request.method == "GET":
+        weight_data = ModelWeights.query.order_by(ModelWeights.user_id).all()
+        weights = []
+        count=0
+        ws =0
+        wg=0
+        wp=0
+        
+        for w in weight_data:
+            ws = ws + w.spelling_w
+            wg = wg + w.grammar_w
+            wp = wp + w.punctuation_w
+            count = count + 1
+        
+        if(count != 0):
+            temp_weights = {
+                "spelling_w" : ws/count,
+                "grammar_w" : wg/count,
+                "punctuation_w" : wp/count
+            }
+        else:
+            temp_weights = {
+            "spelling_w" : 13,
+            "grammar_w" : 5,
+            "punctuation_w" : 2
+        }    
+
+        weights.append(temp_weights)
+        weights = json.dumps(weights)
+
+        return weights
 
 @app.route("/user/user_info",methods=["POST"])
 def userInfo():
@@ -121,12 +259,12 @@ def userInfo():
 
             
 
-@app.route("/essays/all", methods=["GET"])
-def getEssays():
+@app.route("/essays/all/role/<role>/id/<id>", methods=["GET"])
+def getEssays(role,id):
     if request.method == "GET":
         try:
             temp_list = []
-            essay_data = Essays.query.order_by(Essays.date_created).all()
+            essay_data = Essays.query.filter(Essays.user_id == id).filter(Essays.role == role).all()
 
             for essay in essay_data:
                 essay_obj = {
@@ -175,7 +313,7 @@ def update_essay_count(id,role):
             total_essays = json.dumps(total_essays)
             return total_essays
         except:
-            return ""
+            return "Error could not get essay counter"
     return ""            
 
 @app.route("/user/<role>/<id>", methods=["GET","POST"])
@@ -191,6 +329,7 @@ def users(role,id):
                 return "Could not add user"
         else:
             return "User already exists"
+        return ""    
 
 
 @app.route("/mistakes/delete_by_id/id/<id>/role/<role>",methods=["POST"])
@@ -198,38 +337,38 @@ def deleteById(id,role):
     if request.method == "POST":
         exists = db.session.query(Users.id).filter(Users.id ==id, Users.role.like(role)).first() #OLD filter_by(id=id).first()
         if(exists):
-            curr_user = Users.query.get_or_404(id)
+            curr_user = Users.query.filter(Users.id ==id, Users.role.like(role)).first()
             curr_user.essay_count = 0;
             try:
                db.session.commit()
             except:
                 return "Could not update essay count!" 
-            #delete mistakes based on user id on both spelling and grammar tables
-            db.session.query(Spelling).filter(Spelling.id == id).filter(Spelling.role == role).delete()
-            try:
-                db.session.commit()
-            except:
-                return "Could not delete spelling error for the user"
-            db.session.query(Grammar).filter(Grammar.id == id).filter(Grammar.role == role).delete()
-            try:
-                db.session.commit()
-            except:
-                return "Could not delete grammar error for the user"    
-            db.session.query(Syntax).filter(Syntax.id == id).filter(Syntax.role == role).delete()
-            try:
-                db.session.commit()
-            except:
-                return "Could not delete syntax error for the user"    
-            db.session.query(Essays).filter(Essays.user_id == id).filter(Essays.role == role).delete()
-            try:
-                db.session.commit()
-            except:
-                return "Could not delete syntax error for the user"    
-            db.session.query(Wordcount).delete()
-            try:
-                db.session.commit()
-            except:
-                return "Could not delete syntax error for the user"    
+        #delete mistakes based on user id on both spelling and grammar tables
+        db.session.query(Spelling).filter(Spelling.id == id).filter(Spelling.role == role).delete()
+        try:
+            db.session.commit()
+        except:
+            return "Could not delete spelling error for the user"
+        db.session.query(Grammar).filter(Grammar.id == id).filter(Grammar.role == role).delete()
+        try:
+            db.session.commit()
+        except:
+            return "Could not delete grammar error for the user"    
+        db.session.query(Syntax).filter(Syntax.id == id).filter(Syntax.role == role).delete()
+        try:
+            db.session.commit()
+        except:
+            return "Could not delete syntax error for the user"    
+        db.session.query(Essays).filter(Essays.user_id == id).filter(Essays.role == role).delete()
+        try:
+            db.session.commit()
+        except:
+            return "Could not delete syntax error for the user"    
+        db.session.query(Wordcount).delete()
+        try:
+            db.session.commit()
+        except:
+            return "Could not delete syntax error for the user"    
         return ""          
                     
               
@@ -241,7 +380,7 @@ def addData(role,id,type_of_mistake,word):
         if type_of_mistake == 'spelling':
             exists = db.session.query(Spelling.word).filter(Spelling.word ==word_to_add, Spelling.role.like(role), Spelling.id.like(id)).first() #filter(Spelling.word ==word_to_add, Spelling.role.like(role)).first()
             if(exists):
-                task = Spelling.query.get_or_404(word_to_add)
+                task = Spelling.query.filter(Spelling.word ==word_to_add, Spelling.role.like(role), Spelling.id.like(id)).first() #.get_or_die_404(word_to_add) if primary key is the word
                 task.count = task.count + 1
                 try:
                     db.session.commit()
@@ -258,7 +397,7 @@ def addData(role,id,type_of_mistake,word):
         elif type_of_mistake == 'grammar':
             exists = db.session.query(Grammar.word).filter(Grammar.word ==word_to_add, Grammar.role.like(role), Grammar.id.like(id)).first() #filter(Grammar.id ==id, Grammar.role.like(role)).first()
             if(exists):
-                task = Grammar.query.get_or_404(word_to_add)
+                task = Grammar.query.filter(Grammar.word ==word_to_add, Grammar.role.like(role), Grammar.id.like(id)).first()
                 task.count = task.count + 1
                 try:
                     db.session.commit()
@@ -276,7 +415,7 @@ def addData(role,id,type_of_mistake,word):
             exists = db.session.query(Syntax.word).filter(Syntax.word ==word_to_add, Syntax.role.like(role), Syntax.id.like(id)).first() #filter(Syntax.id ==id, Syntax.role.like(role)).first()
             print(exists)
             if(exists):
-                task = Syntax.query.get_or_404(word_to_add)
+                task = Syntax.query.filter(Syntax.word ==word_to_add, Syntax.role.like(role), Syntax.id.like(id)).first()
                 task.count = task.count + 1
                 try:
                     db.session.commit()
@@ -359,13 +498,13 @@ def getData(type_of_mistake):
                 return ""     
 
 
-@app.route("/mistakes/get_all", methods=["GET"])  
-def getMistakesCount():
+@app.route("/mistakes/get_all/role/<role>/id/<id>", methods=["GET"])  
+def getMistakesCount(role,id):
     if  request.method == "GET":
             try:
-                data = Spelling.query.order_by(Spelling.date_created).all()
-                data2= Grammar.query.order_by(Grammar.date_created).all()
-                data3=Syntax.query.order_by(Syntax.date_created).all()
+                data = Spelling.query.order_by(Spelling.date_created).filter(Spelling.id == id).filter(Spelling.role == role).all()
+                data2= Grammar.query.order_by(Grammar.date_created).filter(Grammar.id == id).filter(Grammar.role == role).all()
+                data3=Syntax.query.order_by(Syntax.date_created).filter(Syntax.id == id).filter(Syntax.role == role).all()
                 listaCount = []
                 countS = 0
                 countG = 0
@@ -420,6 +559,7 @@ def getTotalWords():
     if request.method == "GET":
         try:
             data = Wordcount.query.order_by(Wordcount.date_created).all()
+            
             temp_list = []
             temp_average = 0;
             for x in data:
