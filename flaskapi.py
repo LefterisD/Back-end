@@ -67,7 +67,7 @@ class ModelWeights(db.Model):
 
 
 class Spelling(db.Model):
-    id = db.Column(db.Integer)
+    id = db.Column(db.String(50))
     sec_id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(50))
     count = db.Column(db.Integer, default=1)
@@ -79,7 +79,7 @@ class Spelling(db.Model):
 
 
 class Grammar(db.Model):
-    id = db.Column(db.Integer)
+    id = db.Column(db.String(50))
     sec_id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(50))
     count = db.Column(db.Integer, default=1)
@@ -91,7 +91,7 @@ class Grammar(db.Model):
 
 
 class Syntax(db.Model):
-    id = db.Column(db.Integer)
+    id = db.Column(db.String(50))
     sec_id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(50))
     count = db.Column(db.Integer, default=1)
