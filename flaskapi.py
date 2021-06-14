@@ -258,7 +258,7 @@ def setUserWeights(role, id, w1, w2, w3):
                     return "Could not add user"
         else:
             new_user_weight = ModelWeights(
-                user_id=id, role=role, spelling_w=13, grammar_w=5, punctuation_w=2)
+                user_id=id, role=role, spelling_w=15, grammar_w=3.5, punctuation_w=1.5)
             try:
                 db.session.add(new_user_weight)
                 db.session.commit()
